@@ -417,7 +417,7 @@ Let us use the new function to search for QTL considering all traits:
 
 #+begin_src R :results output replace
   ## Running REMIM search
-  system.time({remim_mod2 = remim2(data = dat2, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 4)})
+  system.time({remim_mod2 = remim2(data = dat2, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.1, n.clusters = 4)})
 #+end_src
 
 #+RESULTS[a904564824591be9ff28508c58002547139c14ef]:
@@ -488,7 +488,7 @@ REMIM for trait 5 ‘STE2’
    plot_sint(data = dat2, model = remim_mod2)
  #+end_src
 
- #+RESULTS[bc5e9e1530a8476faeda7c1fe7d69aa4f7e6c635]:
+ #+RESULTS[cecb756dc679d5c856f8af5e2d7452fa77bbc95a]:
  [[file:qtl_sint.png]]
 
 ** Getting QTL statistics
@@ -511,7 +511,7 @@ One may want to get information about the markers surrounding QTL peaks and supp
 
  ,* Trait 2 ‘JIM1’ 
    LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
- 1  2     11.28         88 Alf_417236_SNP1      102.46   2.29e-03
+ 1  2     13.24         90 Alf_424785_SNP1      122.05   7.25e-04
 
  ,* Trait 3 ‘MER4’ 
    LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
@@ -519,8 +519,8 @@ One may want to get information about the markers surrounding QTL peaks and supp
 
  ,* Trait 4 ‘ROY8’ 
    LG Pos_lower Nmrk_lower        Mrk_lower Score_lower Pval_lower
- 1  2     11.28         88  Alf_417236_SNP1      125.64   4.57e-04
- 2  4     43.16        244 Alf_1205537_SNP1       99.39   2.86e-03
+ 1  2     15.73         92  Alf_433899_SNP1      140.46   1.65e-04
+ 2  4     66.62        262 Alf_1271466_SNP2      117.55   9.58e-04
 
  ,* Trait 5 ‘STE2’ 
    LG Pos_lower Nmrk_lower        Mrk_lower Score_lower Pval_lower
@@ -530,11 +530,11 @@ One may want to get information about the markers surrounding QTL peaks and supp
 
  ,* Trait 1 ‘GRE5’ 
    LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
- 1  2     15.73         92 Alf_433899_SNP1      118.26   8.68e-04
+ 1  2     14.37         91 Alf_430646_SNP2      122.46   6.93e-04
 
  ,* Trait 2 ‘JIM1’ 
    LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
- 1  2     78.77        132 Alf_624476_SNP1       105.7   2.02e-03
+ 1  2     15.73         92 Alf_433899_SNP1      119.78   7.88e-04
 
  ,* Trait 3 ‘MER4’ 
    LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
@@ -543,11 +543,11 @@ One may want to get information about the markers surrounding QTL peaks and supp
  ,* Trait 4 ‘ROY8’ 
    LG Pos_upper Nmrk_upper        Mrk_upper Score_upper Pval_upper
  1  2     15.73         92  Alf_433899_SNP1      140.46   1.65e-04
- 2  4     75.00        268 Alf_1297287_SNP1       97.25   3.01e-03
+ 2  4     68.10        264 Alf_1281733_SNP1      117.31   9.60e-04
 
  ,* Trait 5 ‘STE2’ 
    LG Pos_upper Nmrk_upper        Mrk_upper Score_upper Pval_upper
- 1  2     20.27         95  Alf_441139_SNP2      282.15   6.65e-09
+ 1  2     18.89         93  Alf_438766_SNP1      296.57   2.24e-09
  2  5     23.07        320 Alf_1481269_SNP2      161.73   3.56e-05
  #+end_example
 
