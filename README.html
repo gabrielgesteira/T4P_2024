@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2024-01-10 Wed 02:38 -->
+<!-- 2024-01-10 Wed 12:32 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tools for Polyploids: QTLpoly updates</title>
@@ -72,34 +72,36 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org384ffbc">1. QTLpoly updates</a>
+<li><a href="#org50af3de">1. QTLpoly updates</a>
 <ul>
-<li><a href="#org53339f3">1.1. Loading package</a></li>
-<li><a href="#org38912eb">1.2. Loading genotype probabilities</a></li>
-<li><a href="#org7b28c1b">1.3. Getting phenotypes</a></li>
-<li><a href="#org5e45997">1.4. Reading data</a></li>
-<li><a href="#org915ac4a">1.5. Score statistics resampling</a></li>
-<li><a href="#org2262227">1.6. Multiple QTL mapping</a></li>
-<li><a href="#org38e9a96">1.7. Visualizing results</a></li>
-<li><a href="#org4c6e6a9">1.8. Getting QTL statistics</a></li>
-<li><a href="#orgea4b9dd">1.9. Upcoming updates</a></li>
-<li><a href="#org2a0b5a3">1.10. Acknowledgements</a></li>
+<li><a href="#org6e563e3">1.1. Loading package</a></li>
+<li><a href="#orgbe64418">1.2. Loading genotype probabilities</a></li>
+<li><a href="#org2413048">1.3. Getting phenotypes</a></li>
+<li><a href="#orgff56b71">1.4. Reading data</a></li>
+<li><a href="#orge590e77">1.5. Score statistics resampling</a></li>
+<li><a href="#org74e8398">1.6. Multiple QTL mapping</a></li>
+<li><a href="#org02a57a8">1.7. Visualizing results</a></li>
+<li><a href="#org2eafe88">1.8. Getting QTL statistics</a></li>
+<li><a href="#org03087ce">1.9. Upcoming updates</a></li>
+<li><a href="#org17b849e">1.10. Acknowledgements</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
 
-<div id="outline-container-org384ffbc" class="outline-2">
-<h2 id="org384ffbc"><span class="section-number-2">1</span> QTLpoly updates</h2>
+<div id="outline-container-org50af3de" class="outline-2">
+<h2 id="org50af3de"><span class="section-number-2">1</span> QTLpoly updates</h2>
 <div class="outline-text-2" id="text-1">
+<p align="center"><img src="hex.png" width="300" /></p>
+
 <p>
 In this short tutorial, we will demonstrate some  improvements of the QTLpoly package using a autotetraploid alfalfa biparental population as example.
 </p>
 </div>
 
-<div id="outline-container-org53339f3" class="outline-3">
-<h3 id="org53339f3"><span class="section-number-3">1.1</span> Loading package</h3>
+<div id="outline-container-org6e563e3" class="outline-3">
+<h3 id="org6e563e3"><span class="section-number-3">1.1</span> Loading package</h3>
 <div class="outline-text-3" id="text-1-1">
 <p>
 First, install the latest development version of the QTLpoly package from the GitHub repository:
@@ -114,8 +116,8 @@ library(qtlpoly)
 </div>
 </div>
 
-<div id="outline-container-org38912eb" class="outline-3">
-<h3 id="org38912eb"><span class="section-number-3">1.2</span> Loading genotype probabilities</h3>
+<div id="outline-container-orgbe64418" class="outline-3">
+<h3 id="orgbe64418"><span class="section-number-3">1.2</span> Loading genotype probabilities</h3>
 <div class="outline-text-3" id="text-1-2">
 <p>
 Then, load the genotype or homolog probabilities calculated during linkage analysis into R:
@@ -165,8 +167,8 @@ Formal class 'dgCMatrix' [package "Matrix"] with 6 slots
 </div>
 </div>
 
-<div id="outline-container-org7b28c1b" class="outline-3">
-<h3 id="org7b28c1b"><span class="section-number-3">1.3</span> Getting phenotypes</h3>
+<div id="outline-container-org2413048" class="outline-3">
+<h3 id="org2413048"><span class="section-number-3">1.3</span> Getting phenotypes</h3>
 <div class="outline-text-3" id="text-1-3">
 <p>
 Then, load the phenotypic data into R using a data.frame to organize the data. Make sure that the data.frame object has it's row names matching the individual names that were used to generate the previous object (genotype or homolog probabilities). Each column in the data.frame should correspond to a single trait:
@@ -208,8 +210,8 @@ X85.113  2.0  2.5  2.0  2.0  2.0
 </div>
 </div>
 
-<div id="outline-container-org5e45997" class="outline-3">
-<h3 id="org5e45997"><span class="section-number-3">1.4</span> Reading data</h3>
+<div id="outline-container-orgff56b71" class="outline-3">
+<h3 id="orgff56b71"><span class="section-number-3">1.4</span> Reading data</h3>
 <div class="outline-text-3" id="text-1-4">
 <p>
 Finally, use the function <i>read_data</i> to put everything together before starting the QTL analysis. This function was improved with faster calculations for the genetic relationship matrices, haplotype probabilities, and other smaller calculations.
@@ -304,8 +306,8 @@ For datasets analized using the new MAPpoly2, all calculations are now based on 
 </div>
 </div>
 
-<div id="outline-container-org915ac4a" class="outline-3">
-<h3 id="org915ac4a"><span class="section-number-3">1.5</span> Score statistics resampling</h3>
+<div id="outline-container-orge590e77" class="outline-3">
+<h3 id="orge590e77"><span class="section-number-3">1.5</span> Score statistics resampling</h3>
 <div class="outline-text-3" id="text-1-5">
 <p>
 The simulation-based resampling procedure used to determine the significance thresholds for the score statistics was one of the most resource-consuming step of the QTL analysis. The current <i>null_model</i> function requires a lot of time and RAM memory to calculate the p-values for all positions in the genome, repeatedly. The updated <i>null_model2</i> function can reduce this time significantly and also use less RAM memory for that:
@@ -333,8 +335,8 @@ system.time({score.null2 = null_model2(data = data.sim$results, n.clusters = 1, 
 </div>
 </div>
 
-<div id="outline-container-org2262227" class="outline-3">
-<h3 id="org2262227"><span class="section-number-3">1.6</span> Multiple QTL mapping</h3>
+<div id="outline-container-org74e8398" class="outline-3">
+<h3 id="org74e8398"><span class="section-number-3">1.6</span> Multiple QTL mapping</h3>
 <div class="outline-text-3" id="text-1-6">
 <p>
 The random-effect multiple interval mapping (<i>remim</i>) is the core function of the package and automates all steps involved in the QTLs search itself (forward search, backward elimination, and fine-tuning). The original remim functiom could take many hours, even days to run depending on the ploidy level, the number of markers and individuals in the population, as well as the number of QTL in the final model. The updated remim function simplifies the process and runs with less resources and time: 
@@ -414,8 +416,8 @@ REMIM for trait 5 ‘STE2’
 </div>
 </div>
 
-<div id="outline-container-org38e9a96" class="outline-3">
-<h3 id="org38e9a96"><span class="section-number-3">1.7</span> Visualizing results</h3>
+<div id="outline-container-org02a57a8" class="outline-3">
+<h3 id="org02a57a8"><span class="section-number-3">1.7</span> Visualizing results</h3>
 <div class="outline-text-3" id="text-1-7">
 <div class="org-src-container">
 <pre class="src src-R">## Getting QTL profile
@@ -455,8 +457,8 @@ plot_sint(data = dat2, model = remim_mod2)
 </div>
 </div>
 
-<div id="outline-container-org4c6e6a9" class="outline-3">
-<h3 id="org4c6e6a9"><span class="section-number-3">1.8</span> Getting QTL statistics</h3>
+<div id="outline-container-org2eafe88" class="outline-3">
+<h3 id="org2eafe88"><span class="section-number-3">1.8</span> Getting QTL statistics</h3>
 <div class="outline-text-3" id="text-1-8">
 <p>
 One may want to get information about the markers surrounding QTL peaks and support intervals:
@@ -584,8 +586,8 @@ plot_qtl(data = dat2, model = remim_mod2, fitted = fitted_mod, drop.pheno = FALS
 </div>
 </div>
 
-<div id="outline-container-orgea4b9dd" class="outline-3">
-<h3 id="orgea4b9dd"><span class="section-number-3">1.9</span> Upcoming updates</h3>
+<div id="outline-container-org03087ce" class="outline-3">
+<h3 id="org03087ce"><span class="section-number-3">1.9</span> Upcoming updates</h3>
 <div class="outline-text-3" id="text-1-9">
 <ul class="org-ul">
 <li>Next QTLpoly version upgrade
@@ -600,8 +602,8 @@ plot_qtl(data = dat2, model = remim_mod2, fitted = fitted_mod, drop.pheno = FALS
 </div>
 </div>
 
-<div id="outline-container-org2a0b5a3" class="outline-3">
-<h3 id="org2a0b5a3"><span class="section-number-3">1.10</span> Acknowledgements</h3>
+<div id="outline-container-org17b849e" class="outline-3">
+<h3 id="org17b849e"><span class="section-number-3">1.10</span> Acknowledgements</h3>
 <div class="outline-text-3" id="text-1-10">
 <p>
 Breeding Insight Team: Dongyan Zhao, Debby Samac, Meng Lin, Craig Beil, and Moira Sheehan for sharing the data.
@@ -612,7 +614,7 @@ Breeding Insight Team: Dongyan Zhao, Debby Samac, Meng Lin, Craig Beil, and Moir
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Gabriel de Siqueira Gesteira, Guilherme da Silva Pereira, Marcelo Mollinari, Zhao-Bang Zeng</p>
-<p class="date">Created: 2024-01-10 Wed 02:38</p>
+<p class="date">Created: 2024-01-10 Wed 12:32</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

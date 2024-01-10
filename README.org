@@ -130,6 +130,10 @@ The random-effect multiple interval mapping (/remim/) is the core function of th
 
 * QTLpoly updates
 
+#+html: <p align="center"><img src="hex.png" width="300" /></p>
+# #+attr_html: :width 100px
+# [[file:hex.png]]
+
 In this short tutorial, we will demonstrate some  improvements of the QTLpoly package using a autotetraploid alfalfa biparental population as example.
 
 ** Loading package
