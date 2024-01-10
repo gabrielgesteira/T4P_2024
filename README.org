@@ -1,0 +1,614 @@
+#+TITLE: Tools for Polyploids: QTLpoly updates
+#+AUTHOR: Gabriel de Siqueira Gesteira, Guilherme da Silva Pereira, Marcelo Mollinari, Zhao-Bang Zeng
+#+EMAIL: gdesiqu@ncsu.edu
+#+description: Document to handle codes and results related to QTLpoly tutorial.
+#+keywords: qtl mapping quantitative genetics polyploid
+#+STARTUP: entitiespretty nonum noindent hideblocks #latexpreview #inlineimages
+#+PROPERTY: header-args:R :eval no-export :results output none :cache yes :exports both :dir ~/Downloads/T4P_2024 :session *local-R-session-t4p*
+#+PROPERTY: header-args:shell :eval no-export :results output :cache yes :exports both :dir ~/Downloads/T4P_2024 :session *local-sh-session-t4p*
+#+PROPERTY: header-args :mkdirp yes
+#+PROPERTY: tangle-dir ~/Downloads/T4P_2024
+# #+LATEX_HEADER: \usepackage[round]{natbib}
+# #+LATEX_HEADER: \setcitestyle{notesep={:}}
+#+OPTIONS: ^:{}
+#+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
+
+* COMMENT Help tools
+
+#+begin_src R
+## Comparing with current mappoly genoprob format
+library(mappoly)
+detach("package:qtlpoly", unload = T)
+devtools::document("~/Documents/github/QTLpoly_main_branch/")
+devtools::load_all("~/Documents/github/QTLpoly_main_branch/")
+genoprob4x = lapply(maps4x, calc_genoprob)
+str(genoprob4x)
+dat = read_data2(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 1)
+str(dat)
+str(dat$G)
+#+end_src
+
+
+* COMMENT QTLpoly: improvements
+
+** Reading data
+
+The /read_data/ function was improved with faster calculations for the genetic relationship matrices, haplotype probabilities, and other smaller calculations.
+
+#+begin_src R
+  ## Comparing with current mappoly genoprob format
+  library(mappoly)
+  ## detach("package:qtlpoly", unload = T)
+  devtools::load_all("./QTLpoly")
+  genoprob4x = lapply(maps4x, calc_genoprob)
+  genoprob6x = lapply(maps6x, calc_genoprob)
+
+load("alfalfa/alfalfa_data_for_qtl.rda")
+
+
+#+end_src
+
+#+begin_src R :results output replace
+  system.time({dat = read_data(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 1, verbose = F)})
+  system.time({dat = read_data2(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 1, verbose = F)})
+#+end_src
+
+#+RESULTS[7fa412e960c65e37487942ed4770ee892eab0179]:
+:    user  system elapsed 
+:  28.452   2.187  30.637
+: 
+:    user  system elapsed 
+:   0.938   0.113   1.050
+
+#+begin_src R :results output replace
+
+#+end_src
+
+The time required for the calculations used to grow exponentially with the number of markers or desired positions. The new function breakes that to a linear growth:
+
+#+begin_src R :results output replace
+  system.time({dat = read_data(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 0.05, verbose = F)})
+  system.time({dat = read_data2(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 0.05, verbose = F)})
+#+end_src
+
+#+RESULTS[f8ed1aa22b4b9ff58331a056a8da2b06333dfdbd]:
+:    user  system elapsed 
+:  50.300   3.702  54.006
+: 
+:    user  system elapsed 
+:   1.572   0.278   1.851
+
+The same applies for higher ploidy levels:
+
+#+begin_src R :results output replace
+  system.time({dat = read_data(ploidy = 6, geno.prob = genoprob6x, pheno = pheno6x, step = 1, verbose = F)})
+  system.time({dat = read_data2(ploidy = 6, geno.prob = genoprob6x, pheno = pheno6x, step = 1, verbose = F)})
+#+end_src
+
+#+RESULTS[45a5b8e3fcb49ec26f1be3f76f1f55fca7d569ab]:
+:    user  system elapsed 
+:  45.262   2.758  48.122
+: 
+:    user  system elapsed 
+:   6.944   0.676   7.628
+
+For datasets analized using the new MAPpoly2, all calculations are now based on the haplotype-based probabilities instead of the genotype-based ones. This speeds up the whole process and provides better use of resources, especially processing time and RAM memory.
+
+** Null model calculation
+
+The simulation-based resampling procedure used to determine the significance thresholds for the score statistics was one of the most resource-consuming step of the QTL analysis. The current /null_model/ function requires a lot of time and RAM memory to calculate the p-values for all positions in the genome, multiple times. The updated /null_model2/ function is capable of reducing the time in a 30-fold average scale, and also use less RAM memory for the analysis:
+
+#+begin_src R
+  ## Resampling to get LOD thresholds 
+  dat = read_data2(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 1, verbose = F)
+  data.sim = simulate_qtl(data = dat, mu = 0, h2.qtl = NULL, var.error = 1, n.sim = 2, missing = TRUE, seed = 123, verbose=F)
+#+end_src
+
+#+begin_src R :results output replace
+  system.time({score.null = null_model(data = data.sim$results, n.clusters = 1, verbose=F)})
+  system.time({score.null = null_model2(data = data.sim$results, n.clusters = 1, verbose=F)})
+#+end_src
+
+#+RESULTS:
+:   user  system elapsed 
+:  1.401   0.889  71.681 
+:
+:   user  system elapsed 
+:  1.961   0.511  29.136 
+
+** remim: the core function
+
+The random-effect multiple interval mapping (/remim/) is the core function of the package and automates all steps involved in the QTLs search itself (forward search, backward elimination, and fine-tuning). The original remim functiom can take up to days, depending on the ploidy level, the number of markers and individuals in the population, and the number of QTL in the final model.
+
+#+begin_src R :results output replace
+  sig.fwd = 0.002
+  sig.bwd = 0.001
+  system.time({remim_mod = remim(data = dat, pheno.col = 1, sig.fwd = sig.fwd, sig.bwd = sig.bwd, n.clusters = 1, verbose = F)})
+  system.time({remim_mod = remim2(data = dat, pheno.col = 1, sig.fwd = sig.fwd, sig.bwd = sig.bwd, n.clusters = 1, verbose = F)})
+#+end_src
+
+
+* QTLpoly updates
+
+In this short tutorial, we will demonstrate some  improvements of the QTLpoly package using a autotetraploid alfalfa biparental population as example.
+
+** Loading package
+
+First, install the latest development version of the QTLpoly package from the GitHub repository:
+
+ #+begin_src R
+ ## Loading packages
+ devtools::install_github("gabrielgesteira/QTLpoly")
+ library(qtlpoly)
+ #+end_src
+
+** Loading genotype probabilities
+
+Then, load the genotype or homolog probabilities calculated during linkage analysis into R:
+
+ #+begin_src R
+   ## Loading genotype probabilities and reordering maps
+   setwd("~/Downloads/T4P_2024")
+   load("alfalfa/alfalfa_map.rda")
+   genoprob2 = s
+   genoprob2$maps = genoprob2$maps[names(sort(gsub("Chr_", "", unlist(lapply(genoprob2$maps, function(x) return(unique(x$map.genome$order$seq)))))))]
+   load("alfalfa/alfalfa_data_for_qtl.rda")
+   genoprob = genoprob[c("1","3","2","4","8","7","5","6")]
+ #+end_src
+
+ #+begin_src R :results output replace
+ length(genoprob)
+ str(genoprob[[1]])
+ length(genoprob2$maps)
+ str(genoprob2$maps[[1]]$map.genome$phase[[1]]$haploprob)
+ #+end_src
+
+ #+RESULTS[6b9c13de73279bdb8b9b9858a55e180200226690]:
+ #+begin_example
+ [1] 8
+ List of 2
+  $ probs: num [1:36, 1:205, 1:164] 7.44e-12 7.39e-10 7.16e-10 4.72e-11 2.22e-12 ...
+   ..- attr(*, "dimnames")=List of 3
+   .. ..$ : chr [1:36(1d)] "ab:ef" "ab:eg" "ab:eh" "ab:fg" ...
+   .. ..$ : chr [1:205] "alfalfaRep2vsXJDY1_shared_3958_SNP1" "alfalfaRep2vsXJDY1_shared_8638_SNP1" "alfalfaRep2vsXJDY1_shared_10573_SNP1" "alfalfaRep2vsXJDY1_shared_12255_SNP1" ...
+   .. ..$ : chr [1:164] "X85.99" "X85.98" "X85.95" "X85.94" ...
+  $ map  : Named num [1:205] 0 0.0001 0.0562 0.3585 0.3586 ...
+   ..- attr(*, "names")= chr [1:205] "alfalfaRep2vsXJDY1_shared_3958_SNP1" "alfalfaRep2vsXJDY1_shared_8638_SNP1" "alfalfaRep2vsXJDY1_shared_10573_SNP1" "alfalfaRep2vsXJDY1_shared_12255_SNP1" ...
+  - attr(*, "class")= chr "mappoly.genoprob"
+ [1] 8
+ Formal class 'dgCMatrix' [package "Matrix"] with 6 slots
+   ..@ i       : int [1:216283] 0 1 2 3 4 5 6 7 8 9 ...
+   ..@ p       : int [1:246] 0 1472 2944 4416 5536 6655 7738 8562 9386 10210 ...
+   ..@ Dim     : int [1:2] 1472 245
+   ..@ Dimnames:List of 2
+   .. ..$ : NULL
+   .. ..$ : NULL
+   ..@ x       : num [1:216283] 1 1 1 1 2 2 2 2 1 1 ...
+   ..@ factors : list()
+ #+end_example
+
+** Getting phenotypes
+
+Then, load the phenotypic data into R using a data.frame to organize the data. Make sure that the data.frame object has it's row names matching the individual names that were used to generate the previous object (genotype or homolog probabilities). Each column in the data.frame should correspond to a single trait:
+
+ #+begin_src R
+   ## Reading phenotypes and renaming individuals
+   pheno = read.csv("alfalfa/alfalfa_phenotypes_Jan_6_2022.csv", h=T, na.strings = ".")
+   pheno = pheno[,-3]
+   library(reshape2)
+   pheno = dcast(pheno, geno ~ strain, value.var = "pheno")
+   pheno = pheno[grep("X85.", pheno$geno),]
+   rownames(pheno) = paste0("F1.85.",as.character(as.numeric(unlist(lapply(strsplit(pheno$geno, "X85."), function(x) return(x[2]))))))
+   pheno = pheno[,-1]
+   str(pheno)
+   pheno2 = pheno
+   rownames(pheno) = gsub("F1.","X", rownames(pheno))
+ #+end_src
+
+ #+begin_src R :results output replace
+   pheno[1:10,]
+ #+end_src
+
+ #+RESULTS[5559b998d9562fb8138cd9b37e5cee75da5409eb]:
+ #+begin_example
+	 GRE5 JIM1 MER4 ROY8 STE2
+ X85.1    3.3  3.7  3.0  3.0  4.0
+ X85.100  2.0  1.7  3.0  2.0  1.3
+ X85.102  3.0  3.3   NA  2.0  4.0
+ X85.103  2.0  2.7   NA  2.7  3.7
+ X85.104  2.0  2.3   NA  2.0  2.0
+ X85.106  3.0  2.3  1.5  3.0  2.0
+ X85.110  2.0  3.7  2.0  3.3  3.7
+ X85.111  2.0  3.7  2.0  2.0  2.0
+ X85.112  1.0  3.3  3.0  3.7  2.0
+ X85.113  2.0  2.5  2.0  2.0  2.0
+ #+end_example
+
+** Reading data
+
+Finally, use the function /read_data/ to put everything together before starting the QTL analysis. This function was improved with faster calculations for the genetic relationship matrices, haplotype probabilities, and other smaller calculations.
+
+ #+begin_src R :results output replace
+   ## Comparing read_data functions
+   system.time({dat1 = read_data(ploidy = 4, geno.prob = genoprob, pheno = pheno, step = 1, verbose = F)})
+   system.time({dat2 = read_data2(ploidy = 4, geno.prob = genoprob2, pheno = pheno2, step = 1, verbose = F)})
+ #+end_src
+
+ #+RESULTS[1886e75d8261fcce36940aa3f80d41c2069353b7]:
+ #+begin_example
+    user  system elapsed 
+  13.535   1.302  14.838
+
+    user  system elapsed 
+   0.952   0.029   0.982
+ #+end_example
+
+ #+begin_src R :results output replace
+   print(dat1, detailed=T)
+   print(dat2, detailed=T)
+ #+end_src
+
+ #+RESULTS[b384fc6e81c50537032ea3c298b7361f12de0071]:
+ #+begin_example
+ This is an object of class 'qtlpoly.data'
+   Ploidy level:       4
+   No. individuals:    164
+   No. linkage groups: 8
+   Step size:          1 cM 
+   Map size:           493.66 cM (506 positions) 
+     LG 1: 60.69 cM (62 positions) 
+     LG 2: 63.89 cM (65 positions) 
+     LG 3: 64.12 cM (66 positions) 
+     LG 4: 65.66 cM (67 positions) 
+     LG 5: 59.18 cM (61 positions) 
+     LG 6: 53.39 cM (55 positions) 
+     LG 7: 65.14 cM (67 positions) 
+     LG 8: 61.58 cM (63 positions) 
+   No. phenotypes:     5
+     Trait 1: ‘GRE5’ (160 individuals) 
+     Trait 2: ‘JIM1’ (160 individuals) 
+     Trait 3: ‘MER4’ (158 individuals) 
+     Trait 4: ‘ROY8’ (159 individuals) 
+     Trait 5: ‘STE2’ (156 individuals)
+
+ This is an object of class 'qtlpoly.data'
+   Ploidy level:       4
+   No. individuals:    184
+   No. linkage groups: 8
+   Step size:          1 cM 
+   Map size:           759.34 cM (556 positions) 
+     LG 1: 96.52 cM (79 positions) 
+     LG 2: 94.05 cM (67 positions) 
+     LG 3: 97.27 cM (63 positions) 
+     LG 4: 115.43 cM (90 positions) 
+     LG 5: 95.81 cM (76 positions) 
+     LG 6: 66.78 cM (36 positions) 
+     LG 7: 92.38 cM (66 positions) 
+     LG 8: 101.1 cM (79 positions) 
+   No. phenotypes:     5
+     Trait 1: ‘GRE5’ (180 individuals) 
+     Trait 2: ‘JIM1’ (180 individuals) 
+     Trait 3: ‘MER4’ (178 individuals) 
+     Trait 4: ‘ROY8’ (179 individuals) 
+     Trait 5: ‘STE2’ (175 individuals)
+ #+end_example
+
+The time required for the calculations used to grow exponentially with the ploidy level, the number of markers or the desired number of positions considered. The new function breakes that to a linear growth:
+
+#+begin_src R :results output replace
+  system.time({dat.test1 = read_data(ploidy = 4, geno.prob = genoprob, pheno = pheno, step = 0.05, verbose = F)})
+  system.time({dat.test2 = read_data2(ploidy = 4, geno.prob = genoprob2, pheno = pheno2, step = 0.05, verbose = F)})
+#+end_src
+
+#+RESULTS[6b9751dc093d975bc88257a5b29323dc561f77b9]:
+:    user  system elapsed 
+:  25.983   2.316  28.299
+:    user  system elapsed 
+:   1.091   0.101   1.191
+
+For datasets analized using the new MAPpoly2, all calculations are now based on the haplotype probabilities instead of the genotype probabilities. This speeds up the whole process and provides better use of resources, especially processing time and RAM memory.
+
+** COMMENT Old reading data
+
+#+begin_src R
+  ## Comparing with current mappoly genoprob format
+  library(mappoly)
+  ## detach("package:qtlpoly", unload = T)
+  devtools::load_all("./QTLpoly")
+  genoprob4x = lapply(maps4x, calc_genoprob)
+  genoprob6x = lapply(maps6x, calc_genoprob)
+#+end_src
+
+#+begin_src R :results output replace
+  system.time({dat = read_data(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 1, verbose = F)})
+  system.time({dat = read_data2(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 1, verbose = F)})
+#+end_src
+
+#+RESULTS[7fa412e960c65e37487942ed4770ee892eab0179]:
+:    user  system elapsed 
+:  28.452   2.187  30.637
+: 
+:    user  system elapsed 
+:   0.938   0.113   1.050
+
+#+begin_src R :results output replace
+
+#+end_src
+
+The time required for the calculations used to grow exponentially with the number of markers or desired positions. The new function breakes that to a linear growth:
+
+#+begin_src R :results output replace
+  system.time({dat = read_data(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 0.05, verbose = F)})
+  system.time({dat = read_data2(ploidy = 4, geno.prob = genoprob4x, pheno = pheno4x, step = 0.05, verbose = F)})
+#+end_src
+
+#+RESULTS[f8ed1aa22b4b9ff58331a056a8da2b06333dfdbd]:
+:    user  system elapsed 
+:  50.300   3.702  54.006
+: 
+:    user  system elapsed 
+:   1.572   0.278   1.851
+
+The same applies for higher ploidy levels:
+
+#+begin_src R :results output replace
+  system.time({dat = read_data(ploidy = 6, geno.prob = genoprob6x, pheno = pheno6x, step = 1, verbose = F)})
+  system.time({dat = read_data2(ploidy = 6, geno.prob = genoprob6x, pheno = pheno6x, step = 1, verbose = F)})
+#+end_src
+
+#+RESULTS[45a5b8e3fcb49ec26f1be3f76f1f55fca7d569ab]:
+:    user  system elapsed 
+:  45.262   2.758  48.122
+: 
+:    user  system elapsed 
+:   6.944   0.676   7.628
+
+For datasets analized using the new MAPpoly2, all calculations are now based on the haplotype-based probabilities instead of the genotype-based ones. This speeds up the whole process and provides better use of resources, especially processing time and RAM memory.
+
+
+** Score statistics resampling
+
+The simulation-based resampling procedure used to determine the significance thresholds for the score statistics was one of the most resource-consuming step of the QTL analysis. The current /null_model/ function requires a lot of time and RAM memory to calculate the p-values for all positions in the genome, repeatedly. The updated /null_model2/ function can reduce this time significantly and also use less RAM memory for that:
+
+#+begin_src R
+  ## Resampling to get LOD thresholds 
+  data.sim = simulate_qtl(data = dat2, mu = 0, h2.qtl = NULL, var.error = 1, n.sim = 2, missing = TRUE, seed = 123, verbose=F)
+#+end_src
+
+#+begin_src R :results output replace
+  ## Comparting null_model functions
+  system.time({score.null = null_model(data = data.sim$results, n.clusters = 1, verbose=F)})
+  system.time({score.null2 = null_model2(data = data.sim$results, n.clusters = 1, verbose=F)})
+#+end_src
+
+#+RESULTS[067d92b4d2663430ee3e7d08e402f87ffa4c0cc5]:
+:    user  system elapsed 
+:   0.888   0.770  59.828
+:    user  system elapsed 
+:   1.508   0.516  25.468
+
+** Multiple QTL mapping
+
+The random-effect multiple interval mapping (/remim/) is the core function of the package and automates all steps involved in the QTLs search itself (forward search, backward elimination, and fine-tuning). The original remim functiom could take many hours, even days to run depending on the ploidy level, the number of markers and individuals in the population, as well as the number of QTL in the final model. The updated remim function simplifies the process and runs with less resources and time: 
+
+#+begin_src R :results output replace
+  ## Setting significance thresholds
+  sig.fwd = 0.002
+  sig.bwd = 0.001
+  ## Running REMIM functions
+  system.time({remim_mod1 = remim(data = dat2, pheno.col = 1, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 1, verbose = F)})
+  system.time({remim_mod2 = remim2(data = dat2, pheno.col = 1, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 1, verbose = F)})
+#+end_src
+
+#+RESULTS[adbedb30253ec9011a425dfb0273410b22e0cd2d]:
+:    user  system elapsed 
+:   3.195   2.439 201.559
+:    user  system elapsed 
+:   1.966   0.844  43.146
+
+Let us use the new function to search for QTL considering all traits:
+
+#+begin_src R :results output replace
+  ## Running REMIM search
+  system.time({remim_mod2 = remim2(data = dat2, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 4)})
+#+end_src
+
+#+RESULTS[a904564824591be9ff28508c58002547139c14ef]:
+#+begin_example
+INFO: Using 4 CPUs for calculation
+
+REMIM for trait 1 ‘GRE5’ 
+  QTL was found on LG 2 at 11.28 cM (position number 88)
+  No more QTL were found. A putative QTL on LG 8 at 90.52 cM (position number 546) did not reach the threshold; its p-value was 0.01862
+  Refining QTL positions ... 88 
+  Profiling QTL ... 88 
+  Calculation took 18.19 seconds
+
+REMIM for trait 2 ‘JIM1’ 
+  QTL was found on LG 2 at 13.24 cM (position number 90)
+  No more QTL were found. A putative QTL on LG 4 at 64.17 cM (position number 261) did not reach the threshold; its p-value was 0.00357
+  Refining QTL positions ... 90 
+  Profiling QTL ... 90 
+  Calculation took 16.04 seconds
+
+REMIM for trait 3 ‘MER4’ 
+  QTL was found on LG 2 at 15.73 cM (position number 92)
+  No more QTL were found. A putative QTL on LG 4 at 55.19 cM (position number 253) did not reach the threshold; its p-value was 0.00931
+  Refining QTL positions ... 92 
+  Profiling QTL ... 92 
+  Calculation took 16.39 seconds
+
+REMIM for trait 4 ‘ROY8’ 
+  QTL was found on LG 2 at 15.73 cM (position number 92)
+  QTL was found on LG 4 at 66.62 cM (position number 262)
+  No more QTL were found. A putative QTL on LG 2 at 59.96 cM (position number 118) did not reach the threshold; its p-value was 0.01602
+  Refining QTL positions ... 92 ... 262 
+  Profiling QTL ... 92 ... 262 
+  Calculation took 30.48 seconds
+
+REMIM for trait 5 ‘STE2’ 
+  QTL was found on LG 2 at 18.89 cM (position number 93)
+  QTL was found on LG 5 at 23.07 cM (position number 320)
+  No more QTL were found. A putative QTL on LG 8 at 48.33 cM (position number 516) did not reach the threshold; its p-value was 0.01094
+  Refining QTL positions ... 93 ... 320 
+  Profiling QTL ... 93 ... 320 
+  Calculation took 23.42 seconds
+
+   user  system elapsed 
+ 23.941   5.448 106.484
+#+end_example
+
+** Visualizing results
+
+ #+begin_src R  :file lop_profile.png :mkdirp yes :results graphics replace file :exports both :width 3600 :height 3000 :res 300
+   ## Getting QTL profile
+   plot_profile(data = dat2, model = remim_mod2, grid = F)
+ #+end_src
+
+ #+RESULTS[9ab6e1fc16514b16708dcbdd03a6018fef4c462a]:
+ [[file:lop_profile.png]]
+
+ #+begin_src R  :file lop_profile_grid.png :mkdirp yes :results graphics replace file :exports both :width 3600 :height 3000 :res 300
+   ## Getting QTL profile (grid)
+   plot_profile(data = dat2, model = remim_mod2, grid = T)
+ #+end_src
+
+ #+RESULTS[8b98492c34d6e7910daf2d811012f1e68d251703]:
+ [[file:lop_profile_grid.png]]
+
+ #+begin_src R  :file qtl_sint.png :mkdirp yes :results graphics replace file :exports both :width 3600 :height 3000 :res 300
+   ## Getting QTL support intervals
+   plot_sint(data = dat2, model = remim_mod2)
+ #+end_src
+
+ #+RESULTS[bc5e9e1530a8476faeda7c1fe7d69aa4f7e6c635]:
+ [[file:qtl_sint.png]]
+
+** Getting QTL statistics
+
+One may want to get information about the markers surrounding QTL peaks and support intervals:
+
+ #+begin_src R :results output replace
+   ## Getting QTL mapping statistics
+   print(remim_mod2, detailed = TRUE, sint = "lower")
+   print(remim_mod2, detailed = TRUE, sint = "upper")
+ #+end_src
+
+ #+RESULTS[a1f8eb83f1e02a9d31996195dae3cffa8dc3873b]:
+ #+begin_example
+ This is an object of class 'qtlpoly.remim'
+
+ ,* Trait 1 ‘GRE5’ 
+   LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
+ 1  2     10.71         87 Alf_416931_SNP1      120.74   7.44e-04
+
+ ,* Trait 2 ‘JIM1’ 
+   LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
+ 1  2     11.28         88 Alf_417236_SNP1      102.46   2.29e-03
+
+ ,* Trait 3 ‘MER4’ 
+   LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
+ 1  2     10.71         87 Alf_416931_SNP1      409.52  <2.22e-16
+
+ ,* Trait 4 ‘ROY8’ 
+   LG Pos_lower Nmrk_lower        Mrk_lower Score_lower Pval_lower
+ 1  2     11.28         88  Alf_417236_SNP1      125.64   4.57e-04
+ 2  4     43.16        244 Alf_1205537_SNP1       99.39   2.86e-03
+
+ ,* Trait 5 ‘STE2’ 
+   LG Pos_lower Nmrk_lower        Mrk_lower Score_lower Pval_lower
+ 1  2     18.89         93  Alf_438766_SNP1      296.57   2.24e-09
+ 2  5     23.07        320 Alf_1481269_SNP2      161.73   3.56e-05
+ This is an object of class 'qtlpoly.remim'
+
+ ,* Trait 1 ‘GRE5’ 
+   LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
+ 1  2     15.73         92 Alf_433899_SNP1      118.26   8.68e-04
+
+ ,* Trait 2 ‘JIM1’ 
+   LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
+ 1  2     78.77        132 Alf_624476_SNP1       105.7   2.02e-03
+
+ ,* Trait 3 ‘MER4’ 
+   LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
+ 1  2      21.3         96 Alf_448268_SNP1      363.73  <2.22e-16
+
+ ,* Trait 4 ‘ROY8’ 
+   LG Pos_upper Nmrk_upper        Mrk_upper Score_upper Pval_upper
+ 1  2     15.73         92  Alf_433899_SNP1      140.46   1.65e-04
+ 2  4     75.00        268 Alf_1297287_SNP1       97.25   3.01e-03
+
+ ,* Trait 5 ‘STE2’ 
+   LG Pos_upper Nmrk_upper        Mrk_upper Score_upper Pval_upper
+ 1  2     20.27         95  Alf_441139_SNP2      282.15   6.65e-09
+ 2  5     23.07        320 Alf_1481269_SNP2      161.73   3.56e-05
+ #+end_example
+
+We can get further statistics of the mapped QTL in a multiple QTL model:
+
+ #+begin_src R :results output replace
+   ## Getting QTL mapping statistics
+   fitted_mod = fit_model2(data = dat2, model = remim_mod2, probs = "joint", polygenes = "none")
+   summary(fitted_mod)
+ #+end_src
+
+ #+RESULTS[a5c1b9e0ae54b328c8fa6083e1205ec17c2a2947]:
+ #+begin_example
+ There is 1 QTL in the model for trait 1 ‘GRE5’. Fitting model... Done! 
+
+ There is 1 QTL in the model for trait 2 ‘JIM1’. Fitting model... Done! 
+
+ There is 1 QTL in the model for trait 3 ‘MER4’. Fitting model... Done! 
+
+ There are 2 QTL in the model for trait 4 ‘ROY8’. Fitting model... Done! 
+
+ There are 2 QTL in the model for trait 5 ‘STE2’. Fitting model... Done!
+ This is an object of class 'qtlpoly.fitted'
+
+ ,* Trait 1 ‘GRE5’ 
+   LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+ 1  2 11.28   88  2.894972 0.1049899 0.5543117 0.1592441
+
+ ,* Trait 2 ‘JIM1’ 
+   LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+ 1  2 13.24   90  2.764906 0.1462686 0.7283883 0.1672297
+
+ ,* Trait 3 ‘MER4’ 
+   LG   Pos Nmrk Intercept   Var(g)    Var(e)       h2
+ 1  2 15.73   92  2.977505 0.446438 0.4812158 0.481255
+
+ ,* Trait 4 ‘ROY8’ 
+   LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+ 1  2 15.73   92        NA 0.1030649        NA 0.1527627
+ 2  4 66.62  262        NA 0.1121181        NA 0.1661813
+ 3 NA    NA   NA   2.68749        NA 0.4594903  0.318944
+
+ ,* Trait 5 ‘STE2’ 
+   LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+ 1  2 18.89   93        NA 0.2615435        NA 0.2901635
+ 2  5 23.07  320        NA 0.1369834        NA 0.1519731
+ 3 NA    NA   NA  2.724615        NA 0.5028391 0.4421366
+ #+end_example
+
+And get some informative plots regarding the multiple QTL model:
+
+ #+begin_src R  :file plot_qtl.png :mkdirp yes :results graphics replace file :exports both :width 3600 :height 3000 :res 300
+   ## Getting QTL support intervals
+   plot_qtl(data = dat2, model = remim_mod2, fitted = fitted_mod, drop.pheno = FALSE)
+ #+end_src
+
+ #+RESULTS[ae0b364382f04ee92fbcc8ae0ce31e4c0d7315ad]:
+ [[file:plot_qtl.png]]
+
+** Upcoming updates
+
+- Next QTLpoly version upgrade
+  - Multiparental functions will be merged to the main project
+  - Duplicated functions will be merged
+  - Drop support to genotype probabilities
+- Improvements and bug fixes to all functions
+- Reviving QTLCartographer
+
+** Acknowledgements
+
+Breeding Insight Team: Dongyan Zhao, Debby Samac, Meng Lin, Craig Beil, and Moira Sheehan for sharing the data.

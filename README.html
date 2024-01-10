@@ -1,0 +1,619 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2024-01-10 Wed 02:38 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tools for Polyploids: QTLpoly updates</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Gabriel de Siqueira Gesteira, Guilherme da Silva Pereira, Marcelo Mollinari, Zhao-Bang Zeng" />
+<meta name="description" content="Document to handle codes and results related to QTLpoly tutorial."
+ />
+<meta name="keywords" content="qtl mapping quantitative genetics polyploid" />
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/readtheorg_theme/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/readtheorg_theme/css/readtheorg.css"/>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/lib/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/readtheorg_theme/js/readtheorg.js"></script>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2020 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Tools for Polyploids: QTLpoly updates</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org384ffbc">1. QTLpoly updates</a>
+<ul>
+<li><a href="#org53339f3">1.1. Loading package</a></li>
+<li><a href="#org38912eb">1.2. Loading genotype probabilities</a></li>
+<li><a href="#org7b28c1b">1.3. Getting phenotypes</a></li>
+<li><a href="#org5e45997">1.4. Reading data</a></li>
+<li><a href="#org915ac4a">1.5. Score statistics resampling</a></li>
+<li><a href="#org2262227">1.6. Multiple QTL mapping</a></li>
+<li><a href="#org38e9a96">1.7. Visualizing results</a></li>
+<li><a href="#org4c6e6a9">1.8. Getting QTL statistics</a></li>
+<li><a href="#orgea4b9dd">1.9. Upcoming updates</a></li>
+<li><a href="#org2a0b5a3">1.10. Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org384ffbc" class="outline-2">
+<h2 id="org384ffbc"><span class="section-number-2">1</span> QTLpoly updates</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+In this short tutorial, we will demonstrate some  improvements of the QTLpoly package using a autotetraploid alfalfa biparental population as example.
+</p>
+</div>
+
+<div id="outline-container-org53339f3" class="outline-3">
+<h3 id="org53339f3"><span class="section-number-3">1.1</span> Loading package</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+First, install the latest development version of the QTLpoly package from the GitHub repository:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Loading packages
+devtools::install_github("gabrielgesteira/QTLpoly")
+library(qtlpoly)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org38912eb" class="outline-3">
+<h3 id="org38912eb"><span class="section-number-3">1.2</span> Loading genotype probabilities</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+Then, load the genotype or homolog probabilities calculated during linkage analysis into R:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Loading genotype probabilities and reordering maps
+setwd("~/Downloads/T4P_2024")
+load("alfalfa/alfalfa_map.rda")
+genoprob2 = s
+genoprob2$maps = genoprob2$maps[names(sort(gsub("Chr_", "", unlist(lapply(genoprob2$maps, function(x) return(unique(x$map.genome$order$seq)))))))]
+load("alfalfa/alfalfa_data_for_qtl.rda")
+genoprob = genoprob[c("1","3","2","4","8","7","5","6")]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">length(genoprob)
+str(genoprob[[1]])
+length(genoprob2$maps)
+str(genoprob2$maps[[1]]$map.genome$phase[[1]]$haploprob)
+</pre>
+</div>
+
+<pre class="example">
+[1] 8
+List of 2
+ $ probs: num [1:36, 1:205, 1:164] 7.44e-12 7.39e-10 7.16e-10 4.72e-11 2.22e-12 ...
+  ..- attr(*, "dimnames")=List of 3
+  .. ..$ : chr [1:36(1d)] "ab:ef" "ab:eg" "ab:eh" "ab:fg" ...
+  .. ..$ : chr [1:205] "alfalfaRep2vsXJDY1_shared_3958_SNP1" "alfalfaRep2vsXJDY1_shared_8638_SNP1" "alfalfaRep2vsXJDY1_shared_10573_SNP1" "alfalfaRep2vsXJDY1_shared_12255_SNP1" ...
+  .. ..$ : chr [1:164] "X85.99" "X85.98" "X85.95" "X85.94" ...
+ $ map  : Named num [1:205] 0 0.0001 0.0562 0.3585 0.3586 ...
+  ..- attr(*, "names")= chr [1:205] "alfalfaRep2vsXJDY1_shared_3958_SNP1" "alfalfaRep2vsXJDY1_shared_8638_SNP1" "alfalfaRep2vsXJDY1_shared_10573_SNP1" "alfalfaRep2vsXJDY1_shared_12255_SNP1" ...
+ - attr(*, "class")= chr "mappoly.genoprob"
+[1] 8
+Formal class 'dgCMatrix' [package "Matrix"] with 6 slots
+  ..@ i       : int [1:216283] 0 1 2 3 4 5 6 7 8 9 ...
+  ..@ p       : int [1:246] 0 1472 2944 4416 5536 6655 7738 8562 9386 10210 ...
+  ..@ Dim     : int [1:2] 1472 245
+  ..@ Dimnames:List of 2
+  .. ..$ : NULL
+  .. ..$ : NULL
+  ..@ x       : num [1:216283] 1 1 1 1 2 2 2 2 1 1 ...
+  ..@ factors : list()
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org7b28c1b" class="outline-3">
+<h3 id="org7b28c1b"><span class="section-number-3">1.3</span> Getting phenotypes</h3>
+<div class="outline-text-3" id="text-1-3">
+<p>
+Then, load the phenotypic data into R using a data.frame to organize the data. Make sure that the data.frame object has it's row names matching the individual names that were used to generate the previous object (genotype or homolog probabilities). Each column in the data.frame should correspond to a single trait:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Reading phenotypes and renaming individuals
+pheno = read.csv("alfalfa/alfalfa_phenotypes_Jan_6_2022.csv", h=T, na.strings = ".")
+pheno = pheno[,-3]
+library(reshape2)
+pheno = dcast(pheno, geno ~ strain, value.var = "pheno")
+pheno = pheno[grep("X85.", pheno$geno),]
+rownames(pheno) = paste0("F1.85.",as.character(as.numeric(unlist(lapply(strsplit(pheno$geno, "X85."), function(x) return(x[2]))))))
+pheno = pheno[,-1]
+str(pheno)
+pheno2 = pheno
+rownames(pheno) = gsub("F1.","X", rownames(pheno))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">pheno[1:10,]
+</pre>
+</div>
+
+<pre class="example">
+	GRE5 JIM1 MER4 ROY8 STE2
+X85.1    3.3  3.7  3.0  3.0  4.0
+X85.100  2.0  1.7  3.0  2.0  1.3
+X85.102  3.0  3.3   NA  2.0  4.0
+X85.103  2.0  2.7   NA  2.7  3.7
+X85.104  2.0  2.3   NA  2.0  2.0
+X85.106  3.0  2.3  1.5  3.0  2.0
+X85.110  2.0  3.7  2.0  3.3  3.7
+X85.111  2.0  3.7  2.0  2.0  2.0
+X85.112  1.0  3.3  3.0  3.7  2.0
+X85.113  2.0  2.5  2.0  2.0  2.0
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org5e45997" class="outline-3">
+<h3 id="org5e45997"><span class="section-number-3">1.4</span> Reading data</h3>
+<div class="outline-text-3" id="text-1-4">
+<p>
+Finally, use the function <i>read_data</i> to put everything together before starting the QTL analysis. This function was improved with faster calculations for the genetic relationship matrices, haplotype probabilities, and other smaller calculations.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Comparing read_data functions
+system.time({dat1 = read_data(ploidy = 4, geno.prob = genoprob, pheno = pheno, step = 1, verbose = F)})
+system.time({dat2 = read_data2(ploidy = 4, geno.prob = genoprob2, pheno = pheno2, step = 1, verbose = F)})
+</pre>
+</div>
+
+<pre class="example">
+  user  system elapsed 
+13.535   1.302  14.838
+
+  user  system elapsed 
+ 0.952   0.029   0.982
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-R">print(dat1, detailed=T)
+print(dat2, detailed=T)
+</pre>
+</div>
+
+<pre class="example">
+This is an object of class 'qtlpoly.data'
+  Ploidy level:       4
+  No. individuals:    164
+  No. linkage groups: 8
+  Step size:          1 cM 
+  Map size:           493.66 cM (506 positions) 
+    LG 1: 60.69 cM (62 positions) 
+    LG 2: 63.89 cM (65 positions) 
+    LG 3: 64.12 cM (66 positions) 
+    LG 4: 65.66 cM (67 positions) 
+    LG 5: 59.18 cM (61 positions) 
+    LG 6: 53.39 cM (55 positions) 
+    LG 7: 65.14 cM (67 positions) 
+    LG 8: 61.58 cM (63 positions) 
+  No. phenotypes:     5
+    Trait 1: ‘GRE5’ (160 individuals) 
+    Trait 2: ‘JIM1’ (160 individuals) 
+    Trait 3: ‘MER4’ (158 individuals) 
+    Trait 4: ‘ROY8’ (159 individuals) 
+    Trait 5: ‘STE2’ (156 individuals)
+
+This is an object of class 'qtlpoly.data'
+  Ploidy level:       4
+  No. individuals:    184
+  No. linkage groups: 8
+  Step size:          1 cM 
+  Map size:           759.34 cM (556 positions) 
+    LG 1: 96.52 cM (79 positions) 
+    LG 2: 94.05 cM (67 positions) 
+    LG 3: 97.27 cM (63 positions) 
+    LG 4: 115.43 cM (90 positions) 
+    LG 5: 95.81 cM (76 positions) 
+    LG 6: 66.78 cM (36 positions) 
+    LG 7: 92.38 cM (66 positions) 
+    LG 8: 101.1 cM (79 positions) 
+  No. phenotypes:     5
+    Trait 1: ‘GRE5’ (180 individuals) 
+    Trait 2: ‘JIM1’ (180 individuals) 
+    Trait 3: ‘MER4’ (178 individuals) 
+    Trait 4: ‘ROY8’ (179 individuals) 
+    Trait 5: ‘STE2’ (175 individuals)
+</pre>
+
+<p>
+The time required for the calculations used to grow exponentially with the ploidy level, the number of markers or the desired number of positions considered. The new function breakes that to a linear growth:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">system.time({dat.test1 = read_data(ploidy = 4, geno.prob = genoprob, pheno = pheno, step = 0.05, verbose = F)})
+system.time({dat.test2 = read_data2(ploidy = 4, geno.prob = genoprob2, pheno = pheno2, step = 0.05, verbose = F)})
+</pre>
+</div>
+
+<pre class="example">
+  user  system elapsed 
+25.983   2.316  28.299
+  user  system elapsed 
+ 1.091   0.101   1.191
+</pre>
+
+
+<p>
+For datasets analized using the new MAPpoly2, all calculations are now based on the haplotype probabilities instead of the genotype probabilities. This speeds up the whole process and provides better use of resources, especially processing time and RAM memory.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org915ac4a" class="outline-3">
+<h3 id="org915ac4a"><span class="section-number-3">1.5</span> Score statistics resampling</h3>
+<div class="outline-text-3" id="text-1-5">
+<p>
+The simulation-based resampling procedure used to determine the significance thresholds for the score statistics was one of the most resource-consuming step of the QTL analysis. The current <i>null_model</i> function requires a lot of time and RAM memory to calculate the p-values for all positions in the genome, repeatedly. The updated <i>null_model2</i> function can reduce this time significantly and also use less RAM memory for that:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Resampling to get LOD thresholds 
+data.sim = simulate_qtl(data = dat2, mu = 0, h2.qtl = NULL, var.error = 1, n.sim = 2, missing = TRUE, seed = 123, verbose=F)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">## Comparting null_model functions
+system.time({score.null = null_model(data = data.sim$results, n.clusters = 1, verbose=F)})
+system.time({score.null2 = null_model2(data = data.sim$results, n.clusters = 1, verbose=F)})
+</pre>
+</div>
+
+<pre class="example">
+ user  system elapsed 
+0.888   0.770  59.828
+ user  system elapsed 
+1.508   0.516  25.468
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org2262227" class="outline-3">
+<h3 id="org2262227"><span class="section-number-3">1.6</span> Multiple QTL mapping</h3>
+<div class="outline-text-3" id="text-1-6">
+<p>
+The random-effect multiple interval mapping (<i>remim</i>) is the core function of the package and automates all steps involved in the QTLs search itself (forward search, backward elimination, and fine-tuning). The original remim functiom could take many hours, even days to run depending on the ploidy level, the number of markers and individuals in the population, as well as the number of QTL in the final model. The updated remim function simplifies the process and runs with less resources and time: 
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Setting significance thresholds
+sig.fwd = 0.002
+sig.bwd = 0.001
+## Running REMIM functions
+system.time({remim_mod1 = remim(data = dat2, pheno.col = 1, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 1, verbose = F)})
+system.time({remim_mod2 = remim2(data = dat2, pheno.col = 1, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 1, verbose = F)})
+</pre>
+</div>
+
+<pre class="example">
+ user  system elapsed 
+3.195   2.439 201.559
+ user  system elapsed 
+1.966   0.844  43.146
+</pre>
+
+
+<p>
+Let us use the new function to search for QTL considering all traits:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Running REMIM search
+system.time({remim_mod2 = remim2(data = dat2, sig.fwd = sig.fwd, sig.bwd = sig.bwd, d.sint = 0.5, n.clusters = 4)})
+</pre>
+</div>
+
+<pre class="example">
+INFO: Using 4 CPUs for calculation
+
+REMIM for trait 1 ‘GRE5’ 
+  QTL was found on LG 2 at 11.28 cM (position number 88)
+  No more QTL were found. A putative QTL on LG 8 at 90.52 cM (position number 546) did not reach the threshold; its p-value was 0.01862
+  Refining QTL positions ... 88 
+  Profiling QTL ... 88 
+  Calculation took 18.19 seconds
+
+REMIM for trait 2 ‘JIM1’ 
+  QTL was found on LG 2 at 13.24 cM (position number 90)
+  No more QTL were found. A putative QTL on LG 4 at 64.17 cM (position number 261) did not reach the threshold; its p-value was 0.00357
+  Refining QTL positions ... 90 
+  Profiling QTL ... 90 
+  Calculation took 16.04 seconds
+
+REMIM for trait 3 ‘MER4’ 
+  QTL was found on LG 2 at 15.73 cM (position number 92)
+  No more QTL were found. A putative QTL on LG 4 at 55.19 cM (position number 253) did not reach the threshold; its p-value was 0.00931
+  Refining QTL positions ... 92 
+  Profiling QTL ... 92 
+  Calculation took 16.39 seconds
+
+REMIM for trait 4 ‘ROY8’ 
+  QTL was found on LG 2 at 15.73 cM (position number 92)
+  QTL was found on LG 4 at 66.62 cM (position number 262)
+  No more QTL were found. A putative QTL on LG 2 at 59.96 cM (position number 118) did not reach the threshold; its p-value was 0.01602
+  Refining QTL positions ... 92 ... 262 
+  Profiling QTL ... 92 ... 262 
+  Calculation took 30.48 seconds
+
+REMIM for trait 5 ‘STE2’ 
+  QTL was found on LG 2 at 18.89 cM (position number 93)
+  QTL was found on LG 5 at 23.07 cM (position number 320)
+  No more QTL were found. A putative QTL on LG 8 at 48.33 cM (position number 516) did not reach the threshold; its p-value was 0.01094
+  Refining QTL positions ... 93 ... 320 
+  Profiling QTL ... 93 ... 320 
+  Calculation took 23.42 seconds
+
+   user  system elapsed 
+ 23.941   5.448 106.484
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org38e9a96" class="outline-3">
+<h3 id="org38e9a96"><span class="section-number-3">1.7</span> Visualizing results</h3>
+<div class="outline-text-3" id="text-1-7">
+<div class="org-src-container">
+<pre class="src src-R">## Getting QTL profile
+plot_profile(data = dat2, model = remim_mod2, grid = F)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="lop_profile.png" alt="lop_profile.png" />
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">## Getting QTL profile (grid)
+plot_profile(data = dat2, model = remim_mod2, grid = T)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="lop_profile_grid.png" alt="lop_profile_grid.png" />
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">## Getting QTL support intervals
+plot_sint(data = dat2, model = remim_mod2)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="qtl_sint.png" alt="qtl_sint.png" />
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org4c6e6a9" class="outline-3">
+<h3 id="org4c6e6a9"><span class="section-number-3">1.8</span> Getting QTL statistics</h3>
+<div class="outline-text-3" id="text-1-8">
+<p>
+One may want to get information about the markers surrounding QTL peaks and support intervals:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Getting QTL mapping statistics
+print(remim_mod2, detailed = TRUE, sint = "lower")
+print(remim_mod2, detailed = TRUE, sint = "upper")
+</pre>
+</div>
+
+<pre class="example">
+This is an object of class 'qtlpoly.remim'
+
+* Trait 1 ‘GRE5’ 
+  LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
+1  2     10.71         87 Alf_416931_SNP1      120.74   7.44e-04
+
+* Trait 2 ‘JIM1’ 
+  LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
+1  2     11.28         88 Alf_417236_SNP1      102.46   2.29e-03
+
+* Trait 3 ‘MER4’ 
+  LG Pos_lower Nmrk_lower       Mrk_lower Score_lower Pval_lower
+1  2     10.71         87 Alf_416931_SNP1      409.52  &lt;2.22e-16
+
+* Trait 4 ‘ROY8’ 
+  LG Pos_lower Nmrk_lower        Mrk_lower Score_lower Pval_lower
+1  2     11.28         88  Alf_417236_SNP1      125.64   4.57e-04
+2  4     43.16        244 Alf_1205537_SNP1       99.39   2.86e-03
+
+* Trait 5 ‘STE2’ 
+  LG Pos_lower Nmrk_lower        Mrk_lower Score_lower Pval_lower
+1  2     18.89         93  Alf_438766_SNP1      296.57   2.24e-09
+2  5     23.07        320 Alf_1481269_SNP2      161.73   3.56e-05
+This is an object of class 'qtlpoly.remim'
+
+* Trait 1 ‘GRE5’ 
+  LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
+1  2     15.73         92 Alf_433899_SNP1      118.26   8.68e-04
+
+* Trait 2 ‘JIM1’ 
+  LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
+1  2     78.77        132 Alf_624476_SNP1       105.7   2.02e-03
+
+* Trait 3 ‘MER4’ 
+  LG Pos_upper Nmrk_upper       Mrk_upper Score_upper Pval_upper
+1  2      21.3         96 Alf_448268_SNP1      363.73  &lt;2.22e-16
+
+* Trait 4 ‘ROY8’ 
+  LG Pos_upper Nmrk_upper        Mrk_upper Score_upper Pval_upper
+1  2     15.73         92  Alf_433899_SNP1      140.46   1.65e-04
+2  4     75.00        268 Alf_1297287_SNP1       97.25   3.01e-03
+
+* Trait 5 ‘STE2’ 
+  LG Pos_upper Nmrk_upper        Mrk_upper Score_upper Pval_upper
+1  2     20.27         95  Alf_441139_SNP2      282.15   6.65e-09
+2  5     23.07        320 Alf_1481269_SNP2      161.73   3.56e-05
+</pre>
+
+<p>
+We can get further statistics of the mapped QTL in a multiple QTL model:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Getting QTL mapping statistics
+fitted_mod = fit_model2(data = dat2, model = remim_mod2, probs = "joint", polygenes = "none")
+summary(fitted_mod)
+</pre>
+</div>
+
+<pre class="example">
+There is 1 QTL in the model for trait 1 ‘GRE5’. Fitting model... Done! 
+
+There is 1 QTL in the model for trait 2 ‘JIM1’. Fitting model... Done! 
+
+There is 1 QTL in the model for trait 3 ‘MER4’. Fitting model... Done! 
+
+There are 2 QTL in the model for trait 4 ‘ROY8’. Fitting model... Done! 
+
+There are 2 QTL in the model for trait 5 ‘STE2’. Fitting model... Done!
+This is an object of class 'qtlpoly.fitted'
+
+* Trait 1 ‘GRE5’ 
+  LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+1  2 11.28   88  2.894972 0.1049899 0.5543117 0.1592441
+
+* Trait 2 ‘JIM1’ 
+  LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+1  2 13.24   90  2.764906 0.1462686 0.7283883 0.1672297
+
+* Trait 3 ‘MER4’ 
+  LG   Pos Nmrk Intercept   Var(g)    Var(e)       h2
+1  2 15.73   92  2.977505 0.446438 0.4812158 0.481255
+
+* Trait 4 ‘ROY8’ 
+  LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+1  2 15.73   92        NA 0.1030649        NA 0.1527627
+2  4 66.62  262        NA 0.1121181        NA 0.1661813
+3 NA    NA   NA   2.68749        NA 0.4594903  0.318944
+
+* Trait 5 ‘STE2’ 
+  LG   Pos Nmrk Intercept    Var(g)    Var(e)        h2
+1  2 18.89   93        NA 0.2615435        NA 0.2901635
+2  5 23.07  320        NA 0.1369834        NA 0.1519731
+3 NA    NA   NA  2.724615        NA 0.5028391 0.4421366
+</pre>
+
+<p>
+And get some informative plots regarding the multiple QTL model:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">## Getting QTL support intervals
+plot_qtl(data = dat2, model = remim_mod2, fitted = fitted_mod, drop.pheno = FALSE)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="plot_qtl.png" alt="plot_qtl.png" />
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgea4b9dd" class="outline-3">
+<h3 id="orgea4b9dd"><span class="section-number-3">1.9</span> Upcoming updates</h3>
+<div class="outline-text-3" id="text-1-9">
+<ul class="org-ul">
+<li>Next QTLpoly version upgrade
+<ul class="org-ul">
+<li>Multiparental functions will be merged to the main project</li>
+<li>Duplicated functions will be merged</li>
+<li>Drop support to genotype probabilities</li>
+</ul></li>
+<li>Improvements and bug fixes to all functions</li>
+<li>Reviving QTLCartographer</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org2a0b5a3" class="outline-3">
+<h3 id="org2a0b5a3"><span class="section-number-3">1.10</span> Acknowledgements</h3>
+<div class="outline-text-3" id="text-1-10">
+<p>
+Breeding Insight Team: Dongyan Zhao, Debby Samac, Meng Lin, Craig Beil, and Moira Sheehan for sharing the data.
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Gabriel de Siqueira Gesteira, Guilherme da Silva Pereira, Marcelo Mollinari, Zhao-Bang Zeng</p>
+<p class="date">Created: 2024-01-10 Wed 02:38</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
